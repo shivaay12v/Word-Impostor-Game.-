@@ -1,433 +1,130 @@
+name: Build ImpostorVerse APK
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Word Impostor</title>
-<style>
-*{box-sizing:border-box}
-body{
- margin:0;background:#101426;color:white;
- font-family:Arial,sans-serif;padding:18px;
-}
-.app{max-width:520px;margin:auto}
-h1{text-align:center;color:#a78bfa;font-size:32px}
-h2{text-align:center}
-p{text-align:center;color:#cbd5e1}
-.card{
- background:#1e2740;padding:18px;border-radius:18px;
- margin:14px 0;border:1px solid #35405e;
-}
-input,select{
- width:100%;padding:13px;margin:7px 0;
- border-radius:10px;border:1px solid #64748b;
- background:#111a30;color:white;font-size:16px;
-}
-button{
- border:0;border-radius:12px;padding:14px;
- background:#7c3aed;color:white;font-size:16px;
- font-weight:bold;cursor:pointer;margin:5px 0;
-}
-button:disabled{opacity:.4}
-.primary{width:100%}
-.secondary{background:#334155}
-.green{background:#15803d}
-.red{background:#b91c1c}
-.big{font-size:23px;padding:22px}
-.word{font-size:35px;text-align:center;color:#facc15;font-weight:bold;padding:20px}
-.player{
- display:flex;align-items:center;justify-content:space-between;
- background:#29344f;padding:12px;border-radius:10px;margin:7px 0;
-}
-.player button{margin:0;padding:8px 12px}
-.hidden{display:none!important}
-.center{text-align:center}
-.muted{color:#94a3b8;font-size:13px}
-.score{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #475569}
-.vote-result{padding:12px;background:#29344f;border-radius:10px;margin:7px 0}
-.badge{background:#6d28d9;border-radius:20px;padding:5px 10px;font-size:12px}
-</style>
-</head>
-<body>
-<div class="app">
-<h1>🕵️ WORD IMPOSTOR</h1>
-<p>Find the player who doesn't know the word!</p>
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-<!-- SETUP -->
-<section id="setup">
-<div class="card">
-<h2>👥 Players</h2>
-<div style="display:flex;gap:7px">
-<input id="newName" placeholder="Enter player name">
-<button onclick="addPlayer()">ADD</button>
-</div>
-<div id="playerList"></div>
-</div>
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-<div class="card">
-<h2>⚙️ Game Settings</h2>
-<label>Number of impostors</label>
-<select id="impostorCount">
-<option value="1">1 Impostor</option>
-<option value="2">2 Impostors</option>
-<option value="3">3 Impostors</option>
-</select>
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-<label>Impostor word mode</label>
-<select id="wordMode">
-<option value="none">No word – only impostor message</option>
-<option value="related">Different related word</option>
-</select>
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-<label>Word category</label>
-<select id="category">
-<option value="animals">Animals</option>
-<option value="food">Food</option>
-<option value="places">Places</option>
-<option value="objects">Objects</option>
-<option value="mixed">Mixed</option>
-</select>
-</div>
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: true
 
-<button class="primary big" onclick="startGame()">🎮 START GAME</button>
-</section>
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-<!-- SECRET REVEAL -->
-<section id="reveal" class="hidden">
-<div class="card center">
-<h2 id="revealTitle">Player 1</h2>
-<p>Take the phone. Make sure nobody else sees!</p>
-<button class="primary big" onclick="showSecret()">👁️ REVEAL MY WORD</button>
-<div id="secretArea" class="hidden">
-<div class="word" id="secretWord"></div>
-<button class="big" onclick="speakWord()">🔊 SPEAK SLOWLY</button>
-<p class="muted">Tap the speaker to hear your word again.</p>
-<button class="primary green" onclick="hideSecret()">HIDE & PASS PHONE</button>
-</div>
-</div>
-</section>
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/assets
+          cp index.html app/src/main/assets/index.html
+          mkdir -p app/src/main/java/com/impostorverse/game
 
-<!-- DISCUSSION -->
-<section id="discussion" class="hidden">
-<div class="card center">
-<h2>💬 Discussion Time</h2>
-<p>Everyone gives one clue about their secret word.</p>
-<p>Try to identify the impostor!</p>
-<h2>🗣️ Discuss!</h2>
-<button class="primary big green" onclick="startVoting()">DONE – START VOTING</button>
-</div>
-</section>
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "ImpostorVerse"
+          include(":app")
+          EOF
 
-<!-- VOTING -->
-<section id="voting" class="hidden">
-<div class="card center">
-<h2>🗳️ Private Voting</h2>
-<p id="voteTitle"></p>
-<p class="muted">Pass the phone. Keep your vote secret!</p>
-<label>Who do you think is the impostor?</label>
-<select id="voteChoice"></select>
-<button class="primary big" onclick="submitVote()">SUBMIT VOTE</button>
-<p id="voteProgress" class="muted"></p>
-</div>
-</section>
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
 
-<!-- RESULTS -->
-<section id="results" class="hidden">
-<div class="card">
-<h2>📢 VOTE REVEAL</h2>
-<p>Everyone's votes are now visible!</p>
-<div id="individualVotes"></div>
-<h2>Vote Count</h2>
-<div id="voteTotals"></div>
-</div>
-<div class="card center">
-<h2>🕵️ Identity Reveal</h2>
-<div id="identityResult"></div>
-<h2 id="winner"></h2>
-<h2 id="pointsMessage"></h2>
-<button class="primary green" onclick="nextRound()">🔄 NEXT ROUND</button>
-<button class="primary secondary" onclick="showScores()">🏆 SCOREBOARD</button>
-</div>
-</section>
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
 
-<!-- SCORES -->
-<section id="scores" class="hidden">
-<div class="card">
-<h2>🏆 LEADERBOARD</h2>
-<div id="scoreList"></div>
-</div>
-<button class="primary" onclick="nextRound()">PLAY AGAIN</button>
-<button class="primary secondary" onclick="backHome()">HOME</button>
-</section>
-</div>
+          android {
+              namespace 'com.impostorverse.game'
+              compileSdk 35
 
-<script>
-const words={
- animals:[
- ["Elephant","Lion"],["Tiger","Leopard"],["Dog","Wolf"],
- ["Cat","Tiger"],["Rabbit","Hare"],["Monkey","Gorilla"],
- ["Giraffe","Zebra"],["Dolphin","Whale"],["Horse","Donkey"]
- ],
- food:[
- ["Pizza","Burger"],["Apple","Pear"],["Mango","Papaya"],
- ["Ice Cream","Kulfi"],["Rice","Noodles"],
- ["Cake","Pastry"],["Samosa","Kachori"]
- ],
- places:[
- ["School","College"],["Beach","Swimming Pool"],
- ["Hospital","Clinic"],["Zoo","Safari Park"],
- ["Airport","Railway Station"]
- ],
- objects:[
- ["Phone","Tablet"],["Chair","Sofa"],["Clock","Watch"],
- ["Pencil","Pen"],["Car","Bus"],["Fan","Air Conditioner"]
- ]
-};
+              defaultConfig {
+                  applicationId 'com.impostorverse.game'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
 
-let players=[];
-let roles=[];
-let votes=[];
-let voteIndex=0;
-let round=0;
-let currentWord="";
-let impostorWord="";
-let gameMode="none";
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:label="ImpostorVerse">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
-let scores=JSON.parse(localStorage.getItem("wiScores")||"{}");
+          cat > app/src/main/java/com/impostorverse/game/MainActivity.java <<'EOF'
+          package com.impostorverse.game;
 
-function saveScores(){
- localStorage.setItem("wiScores",JSON.stringify(scores));
-}
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import android.webkit.WebSettings;
+          import android.webkit.WebChromeClient;
 
-function addPlayer(){
- const input=document.getElementById("newName");
- const name=input.value.trim();
- if(!name)return;
- if(players.some(p=>p.name.toLowerCase()===name.toLowerCase())){
-  alert("This name is already added!");
-  return;
- }
- players.push({name,points:scores[name]||0});
- input.value="";
- renderPlayers();
-}
+          public class MainActivity extends Activity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView web = new WebView(this);
+                  WebSettings settings = web.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  web.setWebChromeClient(new WebChromeClient());
+                  setContentView(web);
+                  web.loadUrl("file:///android_asset/index.html");
+              }
+          }
+          EOF
 
-function removePlayer(i){
- players.splice(i,1);
- renderPlayers();
-}
+      - name: Build APK
+        run: gradle --no-daemon assembleDebug
 
-function renderPlayers(){
- document.getElementById("playerList").innerHTML="";
- players.forEach((p,i)=>{
-  const div=document.createElement("div");
-  div.className="player";
-  const name=document.createElement("span");
-  name.textContent=p.name;
-  const remove=document.createElement("button");
-  remove.textContent="✕";
-  remove.className="red";
-  remove.onclick=()=>removePlayer(i);
-  div.append(name,remove);
-  document.getElementById("playerList").appendChild(div);
- });
-}
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImpostorVerse-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
 
-function show(id){
- ["setup","reveal","discussion","voting","results","scores"]
- .forEach(x=>document.getElementById(x).classList.add("hidden"));
- document.getElementById(id).classList.remove("hidden");
- window.scrollTo(0,0);
-}
-
-function startGame(){
- const count=Number(document.getElementById("impostorCount").value);
- if(players.length<3){
-  alert("Add at least 3 players!");
-  return;
- }
- if(count>=players.length){
-  alert("There must be at least one normal player!");
-  return;
- }
-
- gameMode=document.getElementById("wordMode").value;
- const cat=document.getElementById("category").value;
- let list=cat==="mixed"?Object.values(words).flat():words[cat];
- const pair=list[Math.floor(Math.random()*list.length)];
- currentWord=pair[0];
- impostorWord=pair[1];
-
- roles=players.map((p,i)=>({name:p.name,impostor:false,index:i}));
- let indexes=roles.map((_,i)=>i);
- indexes.sort(()=>Math.random()-.5);
- indexes.slice(0,count).forEach(i=>roles[i].impostor=true);
-
- revealIndex=0;
- round++;
- showReveal();
-}
-
-let revealIndex=0;
-
-function showReveal(){
- if(revealIndex>=players.length){
-  show("discussion");
-  return;
- }
- document.getElementById("revealTitle").textContent=
- "Player: "+roles[revealIndex].name;
- document.getElementById("secretArea").classList.add("hidden");
- show("reveal");
-}
-
-function showSecret(){
- const player=roles[revealIndex];
- let word=player.impostor?
- (gameMode==="none"?"YOU ARE THE IMPOSTOR":impostorWord):currentWord;
- document.getElementById("secretWord").textContent=word;
- document.getElementById("secretArea").classList.remove("hidden");
-}
-
-function speakWord(){
- const text=document.getElementById("secretWord").textContent;
- if(!("speechSynthesis" in window)){
-  alert("Voice is not supported in this browser.");
-  return;
- }
- speechSynthesis.cancel();
- const utterance=new SpeechSynthesisUtterance(text);
- utterance.rate=0.65;
- utterance.pitch=1;
- utterance.lang="en-IN";
- speechSynthesis.speak(utterance);
-}
-
-function hideSecret(){
- speechSynthesis?.cancel();
- revealIndex++;
- showReveal();
-}
-
-function startVoting(){
- votes=[];
- voteIndex=0;
- show("voting");
- showVote();
-}
-
-function showVote(){
- const player=players[voteIndex];
- document.getElementById("voteTitle").textContent=
- "Voting turn: "+player.name;
-
- const select=document.getElementById("voteChoice");
- select.innerHTML="";
- players.forEach((p,i)=>{
-  if(i===voteIndex)return;
-  const option=document.createElement("option");
-  option.value=i;
-  option.textContent=p.name;
-  select.appendChild(option);
- });
- document.getElementById("voteProgress").textContent=
- "Votes completed: "+voteIndex+" / "+players.length;
-}
-
-function submitVote(){
- const choice=Number(document.getElementById("voteChoice").value);
- if(!Number.isInteger(choice)||!players[choice]){
-  alert("Select a player!");
-  return;
- }
- votes.push({voter:voteIndex,target:choice});
- voteIndex++;
- if(voteIndex>=players.length){
-  showResults();
- }else{
-  showVote();
- }
-}
-
-function showResults(){
- show("results");
-
- const list=document.getElementById("individualVotes");
- list.innerHTML="";
- votes.forEach(v=>{
-  const div=document.createElement("div");
-  div.className="vote-result";
-  div.textContent=players[v.voter].name+" ➜ "+players[v.target].name;
-  list.appendChild(div);
- });
-
- let totals=players.map(()=>0);
- votes.forEach(v=>totals[v.target]++);
-
- const totalBox=document.getElementById("voteTotals");
- totalBox.innerHTML="";
- totals.forEach((n,i)=>{
-  const div=document.createElement("div");
-  div.className="score";
-  div.textContent=players[i].name+" — "+n+" vote(s)";
-  totalBox.appendChild(div);
- });
-
- const highest=Math.max(...totals);
- const leaders=totals.map((n,i)=>n===highest?i:-1).filter(i=>i!==-1);
-
- // Impostors lose only when ALL impostors are tied for the highest votes.
- const impostors=roles.map((r,i)=>r.impostor?i:-1).filter(i=>i!==-1);
- const caught=impostors.every(i=>leaders.includes(i));
-
- document.getElementById("identityResult").innerHTML="";
- roles.forEach(r=>{
-  const div=document.createElement("div");
-  div.className="vote-result";
-  div.textContent=r.name+" — "+(r.impostor?"🕵️ IMPOSTOR":"🙂 NORMAL PLAYER");
-  document.getElementById("identityResult").appendChild(div);
- });
-
- const winner=document.getElementById("winner");
- const pointsMessage=document.getElementById("pointsMessage");
-
- if(caught){
-  winner.textContent="🎉 PLAYERS WIN! IMPOSTOR CAUGHT!";
-  pointsMessage.textContent="Everyone gets +1 point!";
-  players.forEach(p=>p.points++);
- }else{
-  winner.textContent="😈 IMPOSTOR WINS!";
-  pointsMessage.textContent="Each impostor gets +1 point!";
-  roles.forEach((r,i)=>{
-   if(r.impostor)players[i].points++;
-  });
- }
-
- players.forEach(p=>scores[p.name]=p.points);
- saveScores();
-}
-
-function showScores(){
- const box=document.getElementById("scoreList");
- box.innerHTML="";
- [...players].sort((a,b)=>b.points-a.points).forEach((p,i)=>{
-  const div=document.createElement("div");
-  div.className="score";
-  div.textContent=(i+1)+". "+p.name+" — "+p.points+" points";
-  box.appendChild(div);
- });
- show("scores");
-}
-
-function nextRound(){
- // Keep the players and scores, but assign new secret roles.
- startGame();
-}
-
-function backHome(){
- show("setup");
-}
-</script>
-</body>
-</html>
+         
