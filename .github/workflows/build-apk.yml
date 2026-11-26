@@ -1,3 +1,4 @@
+
 name: Build ImpostorVerse APK
 
 on:
@@ -11,23 +12,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-      - name: Build APK
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -f "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          fi
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Create Android project
         run: |
           mkdir -p app/src/main/assets
           cp index.html app/src/main/assets/index.html
-
           mkdir -p app/src/main/java/com/impostorverse/game
 
           cat > settings.gradle <<'EOF'
@@ -39,7 +50,6 @@ jobs:
               }
           }
           dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories {
                   google()
                   mavenCentral()
@@ -59,9 +69,11 @@ jobs:
           plugins {
               id 'com.android.application'
           }
+
           android {
               namespace 'com.impostorverse.game'
               compileSdk 35
+
               defaultConfig {
                   applicationId 'com.impostorverse.game'
                   minSdk 23
@@ -74,10 +86,11 @@ jobs:
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:theme="@android:style/Theme.Material.Light.NoActionBar"
-                  android:label="ImpostorVerse"
-                  android:usesCleartextTraffic="true">
-                  <activity android:name=".MainActivity"
+              <application
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:label="ImpostorVerse">
+                  <activity
+                      android:name=".MainActivity"
                       android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
@@ -95,23 +108,27 @@ jobs:
           import android.os.Bundle;
           import android.webkit.WebView;
           import android.webkit.WebSettings;
+          import android.webkit.WebChromeClient;
 
           public class MainActivity extends Activity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+
                   WebView web = new WebView(this);
                   WebSettings settings = web.getSettings();
                   settings.setJavaScriptEnabled(true);
                   settings.setDomStorageEnabled(true);
-                  web.setWebChromeClient(new android.webkit.WebChromeClient());
+                  web.setWebChromeClient(new WebChromeClient());
+
                   setContentView(web);
                   web.loadUrl("file:///android_asset/index.html");
               }
           }
           EOF
 
-          gradle --no-daemon assembleDebug
+      - name: Build APK
+        run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
