@@ -26,17 +26,16 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -f "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
-          fi
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
           yes | "$SDKMANAGER" --licenses
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Create Android project
         run: |
+          test -s index.html || { echo "ERROR: index.html is missing or empty"; exit 1; }
+
           mkdir -p app/src/main/assets
           cp index.html app/src/main/assets/index.html
           mkdir -p app/src/main/java/com/impostorverse/game
@@ -78,8 +77,8 @@ jobs:
                   applicationId 'com.impostorverse.game'
                   minSdk 23
                   targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 2
+                  versionName '1.1'
               }
           }
           EOF
@@ -88,7 +87,8 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
                   android:theme="@android:style/Theme.Material.Light.NoActionBar"
-                  android:label="ImpostorVerse">
+                  android:label="ImpostorVerse"
+                  android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
@@ -109,6 +109,7 @@ jobs:
           import android.webkit.WebView;
           import android.webkit.WebSettings;
           import android.webkit.WebChromeClient;
+          import android.graphics.Color;
 
           public class MainActivity extends Activity {
               @Override
@@ -116,11 +117,14 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   WebView web = new WebView(this);
+                  web.setBackgroundColor(Color.WHITE);
+
                   WebSettings settings = web.getSettings();
                   settings.setJavaScriptEnabled(true);
                   settings.setDomStorageEnabled(true);
-                  web.setWebChromeClient(new WebChromeClient());
+                  settings.setAllowFileAccess(true);
 
+                  web.setWebChromeClient(new WebChromeClient());
                   setContentView(web);
                   web.loadUrl("file:///android_asset/index.html");
               }
