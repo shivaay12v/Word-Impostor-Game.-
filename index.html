@@ -5,31 +5,88 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ImpostorVerse</title>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101322;color:white;font-family:Arial,sans-serif;text-align:center;padding:20px}
+body{
+ margin:0;
+ padding:18px;
+ background:#101322;
+ color:white;
+ font-family:Arial,sans-serif;
+ text-align:center;
+}
 h1{color:#a78bfa;font-size:34px}
-.card{background:#20263b;padding:20px;border-radius:18px;margin:15px auto;max-width:450px}
-input,select,button{width:100%;padding:13px;margin:7px 0;border:0;border-radius:10px;font-size:16px}
-button{background:#8b5cf6;color:white;font-weight:bold}
-button:active{opacity:.8}
-input,select{background:#fff;color:#111}
-.hidden{display:none}
-.player{background:#303851;padding:12px;border-radius:9px;margin:7px}
-.big{font-size:25px;font-weight:bold;padding:30px}
-small{color:#c4b5fd}
+.card{
+ background:#20263b;
+ padding:20px;
+ border-radius:18px;
+ margin:15px auto;
+ max-width:480px;
+}
+input,select,button{
+ width:100%;
+ padding:13px;
+ margin:7px 0;
+ border:0;
+ border-radius:10px;
+ font-size:16px;
+}
+button{
+ background:#8b5cf6;
+ color:white;
+ font-weight:bold;
+ cursor:pointer;
+}
+button:active{opacity:.75}
+input,select{background:white;color:#111}
+input[type=range]{padding:0}
+.hidden{display:none!important}
+.player{
+ background:#303851;
+ padding:12px;
+ border-radius:9px;
+ margin:7px 0;
+}
+.big{font-size:27px;padding:20px}
+.result{font-size:26px;color:#c4b5fd}
+.secondary{background:#475569}
+.danger{background:#dc3545}
+.success{background:#15803d}
+.small{font-size:13px;color:#c4b5fd}
 </style>
 </head>
+
 <body>
 
 <h1>🕵️ ImpostorVerse</h1>
 <p>Find the impostor among your friends!</p>
 
+<!-- SETUP -->
 <div id="setup" class="card">
-<h2>New Game</h2>
+
+<h2>🎮 New Game</h2>
+
 <input id="playerName" placeholder="Enter player name">
 <button onclick="addPlayer()">➕ Add Player</button>
+
 <div id="playerList"></div>
+
+<hr>
+
+<h3>💾 Saved Player Groups</h3>
+
+<input id="groupName" placeholder="Name this group (e.g. School Friends)">
+<button onclick="savePlayers()">💾 SAVE PLAYER GROUP</button>
+
+<select id="savedGroups">
+<option value="">Select saved group</option>
+</select>
+
+<button class="secondary" onclick="loadPlayers()">📂 LOAD PLAYERS</button>
+<button class="danger" onclick="deleteSavedGroup()">🗑️ DELETE SAVED GROUP</button>
+
+<hr>
 
 <label>Number of impostors</label>
 <select id="impostorCount">
@@ -47,41 +104,94 @@ small{color:#c4b5fd}
 <option value="Mixed">Mixed</option>
 </select>
 
-<button onclick="startGame()">START GAME 🚀</button>
+<button onclick="startGame()">🚀 START GAME</button>
+
 </div>
 
+<!-- SECRET WORD -->
 <div id="reveal" class="card hidden">
+
 <h2 id="turnTitle"></h2>
 <p>Pass the phone to this player.</p>
-<button onclick="revealWord()">REVEAL MY WORD</button>
+
+<button onclick="revealWord()">👁️ REVEAL MY WORD</button>
+
 <h1 id="secretWord" class="big"></h1>
-<button id="nextButton" class="hidden" onclick="nextPlayer()">HIDE & NEXT</button>
+
+<div id="voiceControls" class="hidden">
+
+<button onclick="speakWord()">🔊 LISTEN TO WORD</button>
+
+<div class="card">
+
+<label>🔊 Voice Volume</label>
+<input id="voiceVolume" type="range"
+min="0" max="1" step="0.05" value="1">
+
+<label>⚡ Speaking Speed</label>
+<input id="voiceSpeed" type="range"
+min="0.5" max="2" step="0.1" value="1">
+
+<p class="small">Adjust the voice to your preference.</p>
+
+</div>
 </div>
 
+<button id="nextButton" class="hidden"
+onclick="nextPlayer()">HIDE & NEXT ➡️</button>
+
+</div>
+
+<!-- DISCUSSION -->
 <div id="discussion" class="card hidden">
+
 <h2>🗣️ Discussion Time!</h2>
-<p>Everyone give one clue. Discuss who might be the impostor.</p>
-<button onclick="startVoting()">START VOTING</button>
+<p>Everyone gives one clue. Discuss who might be the impostor.</p>
+
+<button onclick="startVoting()">🗳️ START VOTING</button>
+
 </div>
 
+<!-- VOTING -->
 <div id="voting" class="card hidden">
-<h2 id="voteTitle">Vote privately</h2>
+
+<h2 id="voteTitle"></h2>
+<p>Choose one player. Your vote is private.</p>
+
 <div id="voteOptions"></div>
+
 </div>
 
+<!-- RESULTS -->
 <div id="results" class="card hidden">
-<h2 id="winner"></h2>
-<h3>🏆 Scores</h3>
+
+<h2>🏁 ROUND OVER!</h2>
+
+<h1 id="winner" class="result"></h1>
+
+<h3 id="winnerDetails"></h3>
+
+<div class="player">
+<h3>🕵️ THE IMPOSTOR WAS:</h3>
+<h2 id="impostorName"></h2>
+</div>
+
+<h3>🏆 PLAYER SCORES</h3>
+
 <div id="scores"></div>
-<button onclick="newGame()">PLAY AGAIN</button>
+
+<button onclick="newGame()">🔄 PLAY AGAIN</button>
+<button class="secondary" onclick="backToSetup()">🏠 MAIN MENU</button>
+
 </div>
 
 <script>
+
 const words={
-Animals:["Tiger","Elephant","Dolphin","Lion","Penguin","Giraffe"],
-Food:["Pizza","Burger","Mango","Chocolate","Biryani","Sandwich"],
-Places:["School","Hospital","Airport","Beach","Cinema","Museum"],
-Objects:["Laptop","Chair","Clock","Camera","Umbrella","Bicycle"]
+ Animals:["Tiger","Elephant","Dolphin","Lion","Penguin","Giraffe","Monkey","Horse","Rabbit","Panda"],
+ Food:["Pizza","Burger","Mango","Chocolate","Biryani","Sandwich","Ice Cream","Noodles","Samosa","Pasta"],
+ Places:["School","Hospital","Airport","Beach","Cinema","Museum","Restaurant","Park","Library","Hotel"],
+ Objects:["Laptop","Chair","Clock","Camera","Umbrella","Bicycle","Phone","Television","Bottle","Watch"]
 };
 
 let players=[];
@@ -91,118 +201,400 @@ let turn=0;
 let votes=[];
 let voter=0;
 let points={};
+let wordRevealed=false;
 
-function addPlayer(){
-let name=document.getElementById("playerName").value.trim();
-if(!name)return;
-if(players.includes(name)){alert("Name already added");return;}
-players.push(name);
-points[name]=points[name]||0;
-document.getElementById("playerName").value="";
-renderPlayers();
+const STORAGE_GROUPS="impostorverse_saved_groups";
+const STORAGE_SCORES="impostorverse_scores";
+
+function getSavedGroups(){
+ try{
+  return JSON.parse(localStorage.getItem(STORAGE_GROUPS))||{};
+ }catch(e){return {};}
 }
 
-function renderPlayers(){
-document.getElementById("playerList").innerHTML=players.map((p,i)=>
-`<div class="player">${i+1}. ${escapeHTML(p)} <button onclick="removePlayer(${i})">Remove</button></div>`).join("");
+function saveGroups(groups){
+ localStorage.setItem(STORAGE_GROUPS,JSON.stringify(groups));
+}
+
+function loadSavedScores(){
+ try{
+  points=JSON.parse(localStorage.getItem(STORAGE_SCORES))||{};
+ }catch(e){points={};}
+}
+
+function saveScores(){
+ localStorage.setItem(STORAGE_SCORES,JSON.stringify(points));
 }
 
 function escapeHTML(s){
-return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+ return String(s).replace(/[&<>"']/g,c=>({
+  "&":"&amp;",
+  "<":"&lt;",
+  ">":"&gt;",
+  '"':"&quot;",
+  "'":"&#39;"
+ }[c]));
+}
+
+function addPlayer(){
+ let name=document.getElementById("playerName").value.trim();
+
+ if(!name)return;
+
+ if(players.some(p=>p.toLowerCase()===name.toLowerCase())){
+  alert("This player is already added!");
+  return;
+ }
+
+ players.push(name);
+ if(points[name]===undefined)points[name]=0;
+
+ document.getElementById("playerName").value="";
+ renderPlayers();
+ saveScores();
 }
 
 function removePlayer(i){
-players.splice(i,1);
-renderPlayers();
+ players.splice(i,1);
+ renderPlayers();
+}
+
+function renderPlayers(){
+ document.getElementById("playerList").innerHTML=
+ players.map((p,i)=>`
+ <div class="player">
+ ${i+1}. ${escapeHTML(p)}
+ <button class="danger" onclick="removePlayer(${i})">REMOVE</button>
+ </div>
+ `).join("");
+}
+
+function savePlayers(){
+ if(players.length===0){
+  alert("Add players first!");
+  return;
+ }
+
+ let name=document.getElementById("groupName").value.trim();
+
+ if(!name){
+  alert("Enter a name for this player group!");
+  return;
+ }
+
+ let groups=getSavedGroups();
+
+ groups[name]=[...players];
+
+ saveGroups(groups);
+ refreshSavedGroups();
+
+ alert("Player group saved successfully!");
+ document.getElementById("groupName").value="";
+}
+
+function refreshSavedGroups(){
+ let groups=getSavedGroups();
+ let select=document.getElementById("savedGroups");
+
+ select.innerHTML='<option value="">Select saved group</option>';
+
+ Object.keys(groups).forEach(name=>{
+  let option=document.createElement("option");
+  option.value=name;
+  option.textContent=name;
+  select.appendChild(option);
+ });
+}
+
+function loadPlayers(){
+ let name=document.getElementById("savedGroups").value;
+
+ if(!name){
+  alert("Select a saved group first!");
+  return;
+ }
+
+ let groups=getSavedGroups();
+
+ if(!groups[name]){
+  alert("Saved group not found!");
+  return;
+ }
+
+ players=[...groups[name]];
+
+ players.forEach(p=>{
+  if(points[p]===undefined)points[p]=0;
+ });
+
+ saveScores();
+ renderPlayers();
+
+ alert("Players loaded successfully!");
+}
+
+function deleteSavedGroup(){
+ let name=document.getElementById("savedGroups").value;
+
+ if(!name){
+  alert("Select a saved group first!");
+  return;
+ }
+
+ if(!confirm("Delete saved group "+name+"?"))return;
+
+ let groups=getSavedGroups();
+ delete groups[name];
+
+ saveGroups(groups);
+ refreshSavedGroups();
+
+ alert("Saved group deleted!");
 }
 
 function startGame(){
-let count=Number(document.getElementById("impostorCount").value);
-if(players.length<3){alert("Add at least 3 players!");return;}
-if(count>=players.length){alert("There must be at least one normal player.");return;}
 
-let category=document.getElementById("category").value;
-let list=category==="Mixed"?Object.values(words).flat():words[category];
-secret=list[Math.floor(Math.random()*list.length)];
+ let count=Number(document.getElementById("impostorCount").value);
 
-let shuffled=[...players].sort(()=>Math.random()-.5);
-let impostors=shuffled.slice(0,count);
-roles=players.map(p=>({name:p,impostor:impostors.includes(p)}));
+ if(players.length<3){
+  alert("Add at least 3 players!");
+  return;
+ }
 
-turn=0;
-document.getElementById("setup").classList.add("hidden");
-document.getElementById("reveal").classList.remove("hidden");
-showTurn();
+ if(count>=players.length){
+  alert("There must be at least one normal player!");
+  return;
+ }
+
+ let category=document.getElementById("category").value;
+
+ let list=category==="Mixed"
+  ?Object.values(words).flat()
+  :words[category];
+
+ secret=list[Math.floor(Math.random()*list.length)];
+
+ let shuffled=[...players].sort(()=>Math.random()-.5);
+ let impostors=shuffled.slice(0,count);
+
+ roles=players.map(p=>({
+  name:p,
+  impostor:impostors.includes(p)
+ }));
+
+ turn=0;
+ votes=[];
+ voter=0;
+
+ document.getElementById("setup").classList.add("hidden");
+ document.getElementById("reveal").classList.remove("hidden");
+
+ showTurn();
 }
 
 function showTurn(){
-document.getElementById("turnTitle").textContent=players[turn]+"'s turn";
-document.getElementById("secretWord").textContent="";
-document.getElementById("nextButton").classList.add("hidden");
+
+ wordRevealed=false;
+
+ if("speechSynthesis" in window){
+  speechSynthesis.cancel();
+ }
+
+ document.getElementById("turnTitle").textContent=
+ players[turn]+"'s turn";
+
+ document.getElementById("secretWord").textContent="";
+
+ document.getElementById("voiceControls").classList.add("hidden");
+ document.getElementById("nextButton").classList.add("hidden");
 }
 
 function revealWord(){
-let role=roles[turn];
-document.getElementById("secretWord").textContent=role.impostor?"🕵️ YOU ARE THE IMPOSTOR":secret;
-document.getElementById("nextButton").classList.remove("hidden");
+
+ if(wordRevealed)return;
+
+ wordRevealed=true;
+
+ let role=roles[turn];
+
+ document.getElementById("secretWord").textContent=
+ role.impostor
+ ? "🕵️ YOU ARE THE IMPOSTOR"
+ : secret;
+
+ if(!role.impostor){
+  document.getElementById("voiceControls").classList.remove("hidden");
+ }
+
+ document.getElementById("nextButton").classList.remove("hidden");
+}
+
+function speakWord(){
+
+ if(!("speechSynthesis" in window)){
+  alert("Voice is not supported on this device.");
+  return;
+ }
+
+ speechSynthesis.cancel();
+
+ let utterance=new SpeechSynthesisUtterance(secret);
+
+ utterance.volume=Number(document.getElementById("voiceVolume").value);
+ utterance.rate=Number(document.getElementById("voiceSpeed").value);
+ utterance.pitch=1;
+ utterance.lang="en-IN";
+
+ speechSynthesis.speak(utterance);
 }
 
 function nextPlayer(){
-turn++;
-if(turn<players.length){showTurn();}
-else{
-document.getElementById("reveal").classList.add("hidden");
-document.getElementById("discussion").classList.remove("hidden");
-}
+
+ if("speechSynthesis" in window){
+  speechSynthesis.cancel();
+ }
+
+ turn++;
+
+ if(turn<players.length){
+  showTurn();
+ }else{
+  document.getElementById("reveal").classList.add("hidden");
+  document.getElementById("discussion").classList.remove("hidden");
+ }
 }
 
 function startVoting(){
-votes=[];
-voter=0;
-document.getElementById("discussion").classList.add("hidden");
-document.getElementById("voting").classList.remove("hidden");
-showVote();
+
+ votes=[];
+ voter=0;
+
+ document.getElementById("discussion").classList.add("hidden");
+ document.getElementById("voting").classList.remove("hidden");
+
+ showVote();
 }
 
 function showVote(){
-document.getElementById("voteTitle").textContent=players[voter]+", vote privately";
-let options=players.map((p,i)=>i===voter?"":`<button onclick="castVote(${i})">${escapeHTML(p)}</button>`).join("");
-document.getElementById("voteOptions").innerHTML=options;
+
+ document.getElementById("voteTitle").textContent=
+ players[voter]+", IT'S YOUR TURN TO VOTE";
+
+ let html="";
+
+ players.forEach((p,i)=>{
+  if(i!==voter){
+   html+=`<button onclick="castVote(${i})">${escapeHTML(p)}</button>`;
+  }
+ });
+
+ document.getElementById("voteOptions").innerHTML=html;
 }
 
 function castVote(i){
-votes.push(i);
-voter++;
-if(voter<players.length){showVote();}
-else{showResults();}
+
+ votes.push(i);
+ voter++;
+
+ if(voter<players.length){
+  showVote();
+ }else{
+  showResults();
+ }
 }
 
 function showResults(){
-document.getElementById("voting").classList.add("hidden");
-document.getElementById("results").classList.remove("hidden");
 
-let counts=players.map((p,i)=>votes.filter(v=>v===i).length);
-let max=Math.max(...counts);
-let leaders=counts.map((n,i)=>n===max?i:-1).filter(i=>i>=0);
-let caught=leaders.every(i=>roles[i].impostor);
+ document.getElementById("voting").classList.add("hidden");
+ document.getElementById("results").classList.remove("hidden");
 
-if(caught){
-document.getElementById("winner").textContent="🎉 PLAYERS WIN!";
-players.forEach(p=>points[p]=(points[p]||0)+1);
-}else{
-document.getElementById("winner").textContent="🕵️ IMPOSTOR WINS!";
-roles.filter(r=>r.impostor).forEach(r=>points[r.name]=(points[r.name]||0)+1);
-}
+ let counts=players.map((p,i)=>
+  votes.filter(v=>v===i).length
+ );
 
-document.getElementById("scores").innerHTML=players.map(p=>
-`<div class="player">${escapeHTML(p)} — ${points[p]} points</div>`).join("");
+ let max=Math.max(...counts);
+
+ let leaders=counts.map((n,i)=>
+  n===max?i:-1
+ ).filter(i=>i>=0);
+
+ let impostorIndexes=roles
+  .map((r,i)=>r.impostor?i:-1)
+  .filter(i=>i>=0);
+
+ let caught=leaders.every(i=>roles[i].impostor);
+
+ let impostorNames=roles
+  .filter(r=>r.impostor)
+  .map(r=>r.name);
+
+ if(caught){
+
+  document.getElementById("winner").textContent=
+  "🎉 PLAYERS WIN!";
+
+  document.getElementById("winnerDetails").textContent=
+  "The impostor was caught!";
+
+  players.forEach(p=>{
+   points[p]=(points[p]||0)+1;
+  });
+
+ }else{
+
+  document.getElementById("winner").textContent=
+  "🕵️ IMPOSTOR WINS!";
+
+  document.getElementById("winnerDetails").textContent=
+  "The impostor escaped the vote!";
+
+  roles.filter(r=>r.impostor).forEach(r=>{
+   points[r.name]=(points[r.name]||0)+1;
+  });
+ }
+
+ document.getElementById("impostorName").textContent=
+ impostorNames.join(", ");
+
+ saveScores();
+
+ document.getElementById("scores").innerHTML=
+ players.map(p=>`
+ <div class="player">
+ ${escapeHTML(p)} — ${points[p]||0} points
+ </div>
+ `).join("");
 }
 
 function newGame(){
-document.getElementById("results").classList.add("hidden");
-document.getElementById("setup").classList.remove("hidden");
-renderPlayers();
+
+ document.getElementById("results").classList.add("hidden");
+ document.getElementById("setup").classList.remove("hidden");
+
+ players=[];
+ roles=[];
+ votes=[];
+
+ renderPlayers();
 }
+
+function backToSetup(){
+
+ document.getElementById("results").classList.add("hidden");
+ document.getElementById("setup").classList.remove("hidden");
+
+ players=[];
+ roles=[];
+ votes=[];
+
+ renderPlayers();
+}
+
+loadSavedScores();
+refreshSavedGroups();
+renderPlayers();
+
 </script>
 </body>
 </html>
